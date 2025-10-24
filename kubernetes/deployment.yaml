@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-flask
+  labels:
+    app: vulnerable-flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-flask
+  template:
+    metadata:
+      labels:
+        app: vulnerable-flask
+    spec:
+      containers:
+      - name: vulnerable-flask
+        image: vulnerable-flask-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: "0.5"
+            memory: "512Mi"
+          requests:
+            cpu: "0.2"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20

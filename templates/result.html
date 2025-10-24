@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Rendering Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .warning {
+            background-color: #ffeeee;
+            border-left: 4px solid #ff0000;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background-color: #eeffee;
+            border-left: 4px solid #00aa00;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .result-box {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .code-box {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Template Rendering Result</h1>
+    
+    {% if secure %}
+    <div class="success">
+        <h3>✅ Secure Rendering</h3>
+        <p>This form safely passes user input as a variable to the template, not as template code itself.</p>
+    </div>
+    {% else %}
+    <div class="warning">
+        <h3>⚠️ Vulnerable Rendering ⚠️</h3>
+        <p>This demonstrates a Server-Side Template Injection vulnerability. The user input was directly interpreted as a template, potentially leading to code execution.</p>
+    </div>
+    {% endif %}
+    
+    <h2>Template Source</h2>
+    <div class="code-box">{{ template_source }}</div>
+    
+    <h2>Rendered Output</h2>
+    <div class="result-box">
+        {% if secure %}
+            {{ rendered_template }}
+        {% else %}
+            {{ rendered_template|safe }}
+        {% endif %}
+    </div>
+    
+    <a href="/" class="back-button">Back to Demo</a>
+    
+    <div class="warning">
+        <h3>⚠️ Educational Purpose Only ⚠️</h3>
+        <p>Remember, this is for educational purposes. Never implement such vulnerabilities in production code.</p>
+    </div>
+    
+    <h2>Mitigation</h2>
+    <p>To prevent SSTI vulnerabilities:</p>
+    <ul>
+        <li>Never pass user input directly to template rendering functions</li>
+        <li>Use template parameter passing instead of direct template rendering</li>
+        <li>Consider using a sandboxed template environment with restricted functionality</li>
+        <li>Implement proper input validation and sanitization</li>
+        <li>Apply the principle of least privilege to template contexts</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerable Flask App - SSTI Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .warning {
+            background-color: #ffeeee;
+            border-left: 4px solid #ff0000;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        form {
+            margin-top: 15px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .code-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e8f4ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .index-placeholder {
+            font-weight: bold;
+            color: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server-Side Template Injection (SSTI) Demonstration</h1>
+    
+    <div class="warning">
+        <h3>⚠️ Educational Purpose Only ⚠️</h3>
+        <p>This application intentionally contains a vulnerability to demonstrate Server-Side Template Injection (SSTI). 
+           Never implement this code in a production environment.</p>
+    </div>
+
+    <h2>What is SSTI?</h2>
+    <p>
+        Server-Side Template Injection occurs when user input is directly embedded into a template engine and then rendered.
+        This can lead to code execution on the server if the input contains template expressions that are evaluated.
+    </p>
+
+    <div class="container">
+        <div class="column">
+            <h3>Vulnerable Implementation</h3>
+            <p>This form passes user input directly to <code>render_template_string()</code> which evaluates it as a template.</p>
+            
+            <form action="/render" method="POST">
+                <h4>Enter Template Code:</h4>
+                <textarea name="template" placeholder="e.g., Hello, {{ 7*7 }}!"></textarea>
+                <div id="popen-index-container" class="code-info">
+                    <p><strong>subprocess.Popen index:</strong> <span id="popen-index">Loading...</span></p>
+                    <p>Use this index for RCE payload: </p>
+                    <code id="rce-payload">{{ "''.__class__.__mro__[1].__subclasses__()[INDEX]('ls', shell=True, stdout=-1).communicate()[0].strip()" }}</code>
+                </div>
+                <button type="submit">Render Vulnerable Template</button>
+            </form>
+        </div>
+        
+        <div class="column">
+            <h3>Secure Implementation</h3>
+            <p>This form safely passes user input as a parameter to a template, not as template code itself.</p>
+            
+            <form action="/secure" method="POST">
+                <h4>Enter Text:</h4>
+                <textarea name="template" placeholder="e.g., Hello, {{ 7*7 }}!"></textarea>
+                <p>The same input will be displayed as plain text, not evaluated.</p>
+                <button type="submit">Render Securely</button>
+            </form>
+        </div>
+    </div>
+    
+    <h2>Why is this Dangerous?</h2>
+    <p>
+        When template expressions are evaluated, they can:
+    </p>
+    <ul>
+        <li>Access sensitive configuration data</li>
+        <li>Read local files</li>
+        <li>Execute arbitrary code</li>
+        <li>Potentially gain full system access</li>
+    </ul>
+    
+    <h2>Advanced Exploitation</h2>
+    <p>
+        In a real-world scenario, an attacker could use SSTI to execute arbitrary Python code by:
+    </p>
+    <pre>
+{{ "''.__class__.__mro__[1].__subclasses__()[<index>]('ls', shell=True, stdout=-1).communicate()[0].strip()" }}
+    </pre>
+    <p>
+        Where <code>&lt;index&gt;</code> is the index of <code>subprocess.Popen</code> in the subclasses list.
+        This would execute the 'ls' command and return its output.
+    </p>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch the subprocess.Popen index from the server
+            fetch('/get_popen_index')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('popen-index').textContent = 'Error: ' + data.error;
+                    } else {
+                        const index = data.index;
+                        document.getElementById('popen-index').textContent = index;
+                        
+                        // Update the RCE payload example with the actual index
+                        const payload = document.getElementById('rce-payload').innerHTML;
+                        document.getElementById('rce-payload').innerHTML = 
+                            payload.replace('INDEX', index);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('popen-index').textContent = 'Error fetching index';
+                    console.error('Error fetching Popen index:', error);
+                });
+        });
+    </script>
+</body>
+</html>

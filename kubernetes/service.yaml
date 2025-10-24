@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vulnerable-flask-service
+  labels:
+    app: vulnerable-flask
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  selector:
+    app: vulnerable-flask
+  loadBalancerSourceRanges:
+    - 147.161.229.2/32
+    - 52.178.119.65/32
