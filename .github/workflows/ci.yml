@@ -1,0 +1,118 @@
+name: CI for Vulnerable Flask App
+
+# WARNING: This is an intentionally vulnerable application
+# This CI pipeline is meant for educational purposes only
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Display Security Warning
+      run: |
+        echo "⚠️ WARNING ⚠️"
+        echo "This is an intentionally vulnerable Flask application for educational purposes."
+        echo "Never deploy this in production environments."
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Test with pytest
+      run: |
+        echo "Note: Running minimal tests since this is a demonstration app"
+        # Add tests when they are created:
+        # pytest
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    
+    - name: Build Container Image
+      run: docker build --platform=linux/amd64 . --file Dockerfile --tag ${{ secrets.IMAGE_REPOSITORY }}:${{ github.sha }}
+
+    - name: Create scan results directory
+      run: mkdir -p ./scan-results
+
+    - name: Scan Container Image for vulnerabilities with CrowdStrike
+      uses: crowdstrike/fcs-action@v2.0.2
+      with:
+        falcon_client_id: ${{ secrets.FALCON_CLIENT_ID }}
+        falcon_region: ${{ secrets.FALCON_CLOUD_REGION }}
+        scan_type: image
+        image: "${{ secrets.IMAGE_REPOSITORY }}:${{ github.sha }}"
+        minimum_severity: medium
+        minimum_exprt: medium
+        report_sort_by: severity/desc
+        vuln_fixable_only: true
+        upload_results: true
+        report_formats: json,sarif
+        output_path: './scan-results/results.json'
+      env:
+        FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
+
+    - name: Patch Container Image for ECS Fargate
+      uses: crowdstrike/falconutil-action@v1.1.0
+      with:
+        falcon_client_id: ${{ secrets.FALCON_CLIENT_ID }}
+        falcon_region: ${{ secrets.FALCON_CLOUD_REGION }}
+        source_image_uri: '${{ secrets.IMAGE_REPOSITORY }}:${{ github.sha }}'
+        target_image_uri: '${{ secrets.IMAGE_REPOSITORY }}:${{ github.sha }}-patched'
+        cid: '${{ secrets.FALCON_CID }}'
+        falconctl_opts: '--tags=fnordhorn'
+        cloud_service: 'ECS_FARGATE'
+        image_pull_policy: IfNotPresent
+      env:
+        FALCON_CLIENT_SECRET: '${{ secrets.FALCON_CLIENT_SECRET }}'
+
+    - name: Push image to ECR
+      run: |
+        docker push ${{ secrets.IMAGE_REPOSITORY }}:${{ github.sha }}-patched
+    
+    - name: Display Deployment Warning
+      run: |
+        echo "⚠️ DEPLOYMENT WARNING ⚠️"
+        echo "This application contains INTENTIONAL security vulnerabilities for educational purposes."
+        echo "It is NOT intended for production use or deployment to public-facing environments."
+        echo "If you deploy this application, ensure it is in a controlled, isolated environment."
