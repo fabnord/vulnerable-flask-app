@@ -1,0 +1,93 @@
+name: Deploy to AWS ECS
+
+# WARNING: This workflow deploys an intentionally vulnerable application
+# It should only be used in controlled, isolated environments for educational purposes
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_uri:
+        description: 'URI of the image to deploy'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - test
+      confirm_security_risk:
+        description: 'I confirm this deploys an intentionally vulnerable application'
+        required: true
+        type: boolean
+
+jobs:
+  security-warning:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm_security_risk == 'true' }}
+    steps:
+      - name: Security Warning
+        run: |
+          echo "⚠️ SECURITY WARNING ⚠️"
+          echo "You are deploying an intentionally vulnerable application."
+          echo "This should ONLY be used in isolated, controlled environments for educational purposes."
+          echo "Proceeding with deployment to ${{ github.event.inputs.environment }} environment."
+          echo ""
+          echo "Deployment will continue in 5 seconds..."
+          sleep 5
+    outputs:
+      proceed: ${{ github.event.inputs.confirm_security_risk }}
+
+  deploy-to-ecs:
+    needs: security-warning
+    if: ${{ needs.security-warning.outputs.proceed == 'true' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v5.1.0
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+          mask-password: 'true'
+
+    - name: Update Container Image in Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        task-definition: aws/task-definition.json
+        container-name: vulnerable-flask-app
+        image: ${{ github.event.inputs.image_uri }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: vulnerable-flask-app-service-${{ github.event.inputs.environment }}
+        cluster: ${{ secrets.AWS_ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Deployment Summary
+      run: |
+        echo "✅ Deployment to AWS ECS completed"
+        echo "Environment: ${{ github.event.inputs.environment }}"
+        echo "Image: ${{ github.event.inputs.image_uri }}"
+        echo ""
+        echo "⚠️ SECURITY REMINDER ⚠️"
+        echo "This is an intentionally vulnerable application deployed for educational purposes."
+        echo "It should be removed when your educational activities are complete."
+        echo ""
+        echo "To destroy resources after use, run:"
+        echo "aws ecs update-service --cluster ${{ secrets.AWS_ECS_CLUSTER }} --service vulnerable-flask-app-service-${{ github.event.inputs.environment }} --desired-count 0"
+        echo "aws ecs delete-service --cluster ${{ secrets.AWS_ECS_CLUSTER }} --service vulnerable-flask-app-service-${{ github.event.inputs.environment }} --force"

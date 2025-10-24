@@ -1,0 +1,49 @@
+{
+  "family": "vulnerable-flask-app",
+  "executionRoleArn": "ECSTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "vulnerable-flask-app",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/vulnerable-flask-app:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "hostPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "FLASK_APP",
+          "value": "app.py"
+        },
+        {
+          "name": "FLASK_ENV",
+          "value": "development"
+        },
+        {
+          "name": "FLASK_DEBUG",
+          "value": "1"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/vulnerable-flask-app",
+          "awslogs-region": "eu-central-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "cpu": 256,
+      "memory": 512,
+      "memoryReservation": 256
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512"
+}
