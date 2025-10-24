@@ -64,7 +64,7 @@ jobs:
 
     - name: Update Container Image in Amazon ECS task definition
       id: task-def
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: aws/task-definition.json
         container-name: vulnerable-flask-app
